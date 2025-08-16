@@ -18,7 +18,7 @@ class MCPServerProperties:
     sse_port: int = 41110
     sse_debug_enabled: bool = True
 
-    # Total timeout of one calling for MCP tool, default is 60.0 seconds.
+    # Total timeout time of one MCP calling, in seconds, defaults to 60.0 seconds.
     timeout: float = 60.0
 
     jetbrains_mcp_server: JetbrainsMCPServer = JetbrainsMCPServer()
@@ -104,7 +104,6 @@ class MCPServerProperties:
             self.transport = transport.strip()
             log.info(f"Transport set to: {self.transport}.")
 
-        # SSE
         if self.transport == 'sse':
             # SSE endpoint
             endpoint = get_str_property(props=properties, prop_name='sse_transport_endpoint',
@@ -131,7 +130,6 @@ class MCPServerProperties:
                 self.sse_debug_enabled = debug_enabled
                 log.info(f"SSE debug enabled set to: {self.sse_debug_enabled}.")
 
-        # Check tool timeout
         timeout = get_float_property(props=properties, prop_name='timeout',
                                      env_var_name='JETBRAINS_PROXY_MCP_SERVER_TIMEOUT')
         if timeout is not None and timeout >= 0.1:

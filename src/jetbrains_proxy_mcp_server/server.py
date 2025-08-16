@@ -33,8 +33,10 @@ def serve(properties_path: str | None = None) -> None:
         # But for now, this is fine.
         loop = getattr(proxy, "_loop", None)
         if not loop or not loop.is_running():
-            log.error("Proxy's event loop is not running. Please ensure the proxy is started before calling this function.")
-            raise RuntimeError("Proxy is not running.")
+            log.error(
+                "Proxy event loop is not running. Please ensure the proxy is started before calling this function.")
+            raise RuntimeError(
+                "Proxy event loop is not running. Please ensure the proxy is started before calling this function")
         future = asyncio.run_coroutine_threadsafe(coro, loop)
         return future.result(properties.timeout)
 

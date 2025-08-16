@@ -9,14 +9,6 @@ class JetbrainsMCPServer(BaseModel):
     # Name of the MCP server, required.
     name: str = "jetbrains-mcp-server"
 
-    # Environment variables to run the MCP server for stdio type, defaults to None.
-    env: dict[str, str] = None
-    # Text encoding used when sending/receiving messages to the server, defaults to utf-8.
-    encoding: str = "utf-8"
-    # Text encoding error handler. "strict", "ignore" or "replace", defaults to "strict".
-    # See https://docs.python.org/3/library/codecs.html#codec-base-classes for explanations of possible values
-    encoding_error_handler: str = "strict"
-
     # URL of the MCP server for sse type, default is None.
     url: str = "http://127.0.0.1:64342/sse"
     # Headers to send with the request for sse type, defaults to None.
@@ -33,7 +25,8 @@ class JetbrainsMCPServer(BaseModel):
     max_backoff: float = 60.0
     backoff_multiplier: float = 3.0
 
-    debug_enabled: bool = True
+    # Path type for the client, default is "wsl", available options are "wsl", "windows_git_bash" and "windows".
+    client_path_type: str = "wsl"
+    server_path_type: str = "windows"
 
-    proxy_path_type: str = "wsl"
-    jetbrains_path_type: str = "windows"
+    debug_enabled: bool = True

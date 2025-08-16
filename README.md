@@ -1,23 +1,24 @@
 # JetBrains Proxy MCP Server
 **Project Overview:**
 
-- A Python-based proxy server for the JetBrains MCP (Model Context Protocol) that acts as an intermediary between an MCP client and a JetBrains MCP server.
+- A Python-based proxy server for the JetBrains MCP (Model Context Protocol) server that acts as an intermediary between an MCP client and a JetBrains MCP server.
 - The core logic resides in [`src/jetbrains_proxy_mcp_server/server.py`][server.py],
-  which handles the server setup and transport layer.
+  which handles the proxy server setup and transport layer.
   The [`src/jetbrains_proxy_mcp_server/service/JetbrainsMCPServerProxy.py`][JetbrainsMCPServerProxy]
   class manages the connection to the downstream JetBrains MCP server and proxies the tool calls.
-  It also includes logic to handle path conversions between different operating systems.
+  It also includes logic to handle path conversions between different path formats (WSL, Git Bash, Windows).
 
 Configuration is managed through the [`src/jetbrains_proxy_mcp_server/properties/MCPServerProperties.py`][MCPServerProperties.py] class,
 which loads settings from a `config.yaml` file.
 
 **Features:**
 
-- **Proxy Functionality**: Forwards requests from MCP clients to JetBrains MCP server
+- **Proxy Functionality**: Forwards requests from MCP clients to the [JetBrains MCP server][26071-mcp-server]
 - **Dual Transport Support**: Works with both Server-Sent Events (SSE) and standard I/O (stdio)
-- **Path Conversion**: Handles file path conversions between different operating systems (WSL, Git Bash, Windows)
+- **Path Conversion**: Handles file path conversions between different path formats (WSL, Git Bash, Windows)
 - **Resilience**: Built-in retry, timeout, and restart mechanisms for robust operation
 - **Tool Filtering**: Supports a curated list of JetBrains tools for controlled access
+
 
 
 ## Installation
@@ -49,7 +50,10 @@ Env vars:
 ```
 
 ```bash
+# Install the package using the provided script:
 ./pytools.sh reinstall-venv
+
+./pytools.sh reinstall-system --break-system-packages
 
 # Or install the package using pip:
 pip install .
@@ -93,38 +97,110 @@ jetbrains-mcp-server:
   max-backoff: 60.0
   backoff-multiplier: 3.0
   debug-enabled: true
-  proxy-path-type: "wsl"  # or ""windows_git_bash" or "windows"
-  jetbrains-path-type: "windows"  # or "wsl" or "windows_git_bash"
+  client-path-type: "wsl"  # or ""windows_git_bash" or "windows"
+  server-path-type: "windows"  # or "wsl" or "windows_git_bash"
 ```
 
 
-### Configuration Properties
-| Property                 | Default                      | Description                       |
-|--------------------------|------------------------------|-----------------------------------|
-| `server-name`            | "JetBrains Proxy MCP Server" | Name of the proxy server          |
-| `transport`              | "sse"                        | Transport type: "sse" or "stdio"  |
-| `timeout`                | 60.0                         | Timeout for tool calls in seconds |
-| `sse-bind-host`          | "0.0.0.0"                    | Host to bind SSE server to        |
-| `sse-port`               | 41110                        | Port for SSE server               |
-| `sse-debug-enabled`      | true                         | Enable SSE debug mode             |
+### [Proxy Server Properties][MCPServerProperties.py]
+| Property            | Default                    | Description                       |
+|---------------------|----------------------------|-----------------------------------|
+| `server-name`       | JetBrains Proxy MCP Server | Name of the proxy server          |
+| `transport`         | sse                        | Transport type: "sse" or "stdio"  |
+| `sse-port`          | 41110                      | Port for SSE server               |
+| `sse-debug-enabled` | true                       | Enable SSE debug mode             |
+| `timeout`           | 60.0                       | Timeout for tool calls in seconds |
 
 
-### JetBrains MCP Server Properties
-| Property              | Default                      | Description                              |
-|-----------------------|------------------------------|------------------------------------------|
-| `name`                | "jetbrains-mcp-server"       | Name of the JetBrains MCP server         |
-| `url`                 | "http://127.0.0.1:64342/sse" | URL of the JetBrains MCP server          |
-| `timeout`             | 35.0                         | Timeout for requests to JetBrains server |
-| `sse-read-timeout`    | 300.0                        | SSE read timeout                         |
-| `start-timeout`       | 120.0                        | Timeout for server startup               |
-| `stop-timeout`        | 30.0                         | Timeout for server shutdown              |
-| `max-attempts`        | 5                            | Maximum retry attempts                   |
-| `initial-backoff`     | 1.0                          | Initial backoff time in seconds          |
-| `max-backoff`         | 60.0                         | Maximum backoff time in seconds          |
-| `backoff-multiplier`  | 3.0                          | Backoff multiplier for retries           |
-| `debug-enabled`       | true                         | Enable debug logging                     |
-| `proxy-path-type`     | "wsl"                        | Path type for the proxy server           |
-| `jetbrains-path-type` | "windows"                    | Path type for the JetBrains server       |
+### [JetBrains MCP Server Properties][JetbrainsMCPServer.py]
+| Property             | Default                    | Description                              |
+|----------------------|----------------------------|------------------------------------------|
+| `name`               | jetbrains-mcp-server       | Name of the JetBrains MCP server         |
+| `url`                | http://127.0.0.1:64342/sse | URL of the JetBrains MCP server          |
+| `headers`            | {}                         | Additional headers for requests          |
+| `timeout`            | 35.0                       | Timeout for requests to JetBrains server |
+| `sse-read-timeout`   | 300.0                      | SSE read timeout                         |
+| `start-timeout`      | 120.0                      | Timeout for server startup               |
+| `stop-timeout`       | 30.0                       | Timeout for server shutdown              |
+| `max-attempts`       | 5                          | Maximum retry attempts                   |
+| `initial-backoff`    | 1.0                        | Initial backoff time in seconds          |
+| `max-backoff`        | 60.0                       | Maximum backoff time in seconds          |
+| `backoff-multiplier` | 3.0                        | Backoff multiplier for retries           |
+| `client-path-type`   | wsl                        | Path type for the client                 |
+| `server-path-type`   | windows                    | Path type for the JetBrains server       |
+| `debug-enabled`      | true                       | Enable debug logging                     |
+
+
+### Environment Variables
+See also:
+
+- [MCPServerProperties.py]
+- [logger.py]
+
+Configuration can also be set using environment variables:
+
+- `JETBRAINS_PROXY_MCP_SERVER_CONFIG` - Path to config file
+- `JETBRAINS_PROXY_MCP_SERVER_NAME` - Server name
+- `JETBRAINS_PROXY_MCP_SERVER_TRANSPORT` - Transport type
+- `JETBRAINS_PROXY_MCP_SERVER_TIMEOUT` - Tool timeout
+
+For stdio transport, you must set:
+
+```bash
+export SIMP_LOGGER_LOG_CONSOLE_ENABLED=False
+```
+
+
+
+## MCP Configuration
+### JSON
+**sse, wsl:**
+
+```json
+{
+  "mcpServers": {
+    "jetbrains": {
+      "url": "http://127.0.0.1:41110/sse"
+    }
+  }
+}
+```
+
+**sse, windows:**
+
+```json
+{
+  "mcpServers": {
+    "jetbrains": {
+      "url": "http://127.0.0.1:41111/sse"
+    }
+  }
+}
+```
+
+**stdio, windows:**
+
+```bash
+pip install jetbrains-proxy-mcp-server --upgrade --force-reinstall --extra-index-url http://127.0.0.1:8081/repository/pypi-group/simple --trusted-host 127.0.0.1
+```
+
+```json
+{
+  "mcpServers": {
+    "jetbrains": {
+      "command": "jetbrains-proxy-mcp-server",
+      "args": [
+        "--config",
+        "c:/Users/<USER>/.config/jetbrains-proxy-mcp-server/config.yaml"
+      ],
+      "env": {
+        "SIMP_LOGGER_LOG_CONSOLE_ENABLED": "False",
+        "SIMP_LOGGER_LOG_LEVEL": "DEBUG"
+      }
+    }
+  }
+}
+```
 
 
 
@@ -141,23 +217,11 @@ jetbrains-proxy-mcp-server --config /path/to/your/config.yaml
 If no config path is provided, the server will search for a `config.yaml` file in the default locations.
 
 
-### Environment Variables
-Configuration can also be set using environment variables:
-
-- `JETBRAINS_PROXY_MCP_SERVER_CONFIG` - Path to config file
-- `JETBRAINS_PROXY_MCP_SERVER_NAME` - Server name
-- `JETBRAINS_PROXY_MCP_SERVER_TRANSPORT` - Transport type
-- `JETBRAINS_PROXY_MCP_SERVER_TIMEOUT` - Tool timeout
-
-For stdio transport, you must set:
-
-```bash
-export SIMP_LOGGER_LOG_CONSOLE_ENABLED=False
-```
-
 
 ## Supported Tools
 The proxy supports a curated list of JetBrains tools:
+
+**MCP Server v252.xxx**
 
 - `get_all_open_file_paths` - Get paths of all open files
 - `get_file_problems` - Analyze file for errors and warnings
@@ -181,7 +245,7 @@ The proxy handles path conversions between different operating systems:
 - **Git Bash**: `/c/path/to/file`
 - **Windows**: `C:\path\to\file`
 
-Configure `proxy-path-type` and `jetbrains-path-type` in your config to match your environments.
+Configure `client-path-type` and `server-path-type` in your config to match your environments.
 
 
 
@@ -223,14 +287,16 @@ pytest
 - pydantic >= 2.0
 - typing >= 3.7.4.3
 - pyyaml >= 6.0.2
+- anyio >= 4.3.0
 
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 
-
 [server.py]: src/jetbrains_proxy_mcp_server/server.py
 [JetbrainsMCPServerProxy]: src/jetbrains_proxy_mcp_server/service/JetbrainsMCPServerProxy.py
 [MCPServerProperties.py]: src/jetbrains_proxy_mcp_server/properties/MCPServerProperties.py
 [JetbrainsMCPServer.py]: src/jetbrains_proxy_mcp_server/properties/JetbrainsMCPServer.py
+[logger.py]: src/jetbrains_proxy_mcp_server/logger.py
+[26071-mcp-server]: https://plugins.jetbrains.com/plugin/26071-mcp-server

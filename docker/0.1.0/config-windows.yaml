@@ -1,7 +1,7 @@
 server-name: jetbrains-proxy-mcp-server
 transport: sse
 timeout: 60
-sse-port: 41110
+sse-port: 41111
 
 jetbrains-mcp-server:
   name: "jetbrains-mcp-server"
@@ -15,5 +15,5 @@ jetbrains-mcp-server:
   max-backoff: 60.0
   backoff-multiplier: 3.0
   debug-enabled: true
-  client-path-type: "wsl"  # or ""windows_git_bash" or "windows"
-  server-path-type: "windows"  # or "wsl" or "windows_git_bash"
+  client-path-type: "windows"
+  server-path-type: "windows"

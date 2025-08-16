@@ -17,6 +17,8 @@ from ..utils import execute, get, AttemptHookArgs
 
 
 class SS(Enum):
+    """Server Status Enum to represent the current state of the MCP server."""
+
     STOPPED = auto()
     STARTING = auto()
     STARTED = auto()
@@ -126,12 +128,10 @@ class JetbrainsMCPServerProxy:
         deadline = time.monotonic() + timeout
 
         async with self._lock:
-            # If the server is already started, return immediately
             if self.status == SS.STARTED:
                 log.info(f"Server {self.properties.name} is already started.")
                 return
 
-            # If the server is starting or stopping, wait for it to become stable
             while self.status in (SS.STARTING, SS.STOPPING):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -143,12 +143,10 @@ class JetbrainsMCPServerProxy:
                     raise TE(f"Timeout waiting for server {self.properties.name} to become stable before starting. "
                              f"Current status: {self.status.name}")
 
-            # If the server is already started, return immediately
             if self.status == SS.STARTED:
                 log.info(f"Server {self.properties.name} is already started.")
                 return
 
-            # If the server is not stopped, raise an error
             if self.status != SS.STOPPED:
                 raise RuntimeError(f"Unexcepted status {self.status.name} after waiting server {self.properties.name}")
 
@@ -162,7 +160,6 @@ class JetbrainsMCPServerProxy:
             raise TE(f"Not enough time left to start server {self.properties.name}")
 
         try:
-            # Execute the start method with retry logic
             await execute(
                 self._do_start,
                 retryer_timeout=remaining,
@@ -172,7 +169,6 @@ class JetbrainsMCPServerProxy:
                 retryer_backoff_multiplier=self.properties.backoff_multiplier,
             )
 
-            # If the start was successful, update the status
             async with self._lock:
                 self.status = SS.STARTED
                 self._status_changed.notify_all()
@@ -356,8 +352,6 @@ class JetbrainsMCPServerProxy:
             try:
                 if transport_context is not None:
                     timeout = timeout / 3.0 * 2.0
-                # async with asyncio.timeout(timeout):
-                #    await session.__aexit__(None, None, None)
                 await asyncio.wait_for(session.__aexit__(None, None, None), timeout=timeout)
             except TE:
                 log.error(f"Timeout closing session of {self.properties.name} after {timeout}s. Ignoring.")
@@ -367,8 +361,6 @@ class JetbrainsMCPServerProxy:
         if transport_context is not None:
             try:
                 timeout = max(1.0, deadline - time.monotonic())
-                # async with asyncio.timeout(timeout):
-                #    await transport_context.__aexit__(None, None, None)
                 await asyncio.wait_for(transport_context.__aexit__(None, None, None), timeout=timeout)
             except TE:
                 log.error(
@@ -542,15 +534,15 @@ class JetbrainsMCPServerProxy:
             log.error("Missing required argument: pathInProject")
             raise ToolError(message="Missing required argument: pathInProject", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             path = arguments.get('pathInProject', None)
             if path and isinstance(path, str) and path.strip():
-                arguments['pathInProject'] = convert_path(path=path, from_type=jetbrains_path_type,
-                                                          to_type=proxy_path_type)
+                arguments['pathInProject'] = convert_path(path=path, from_type=server_path_type,
+                                                          to_type=client_path_type)
 
         try:
             if debug:
@@ -619,9 +611,9 @@ class JetbrainsMCPServerProxy:
         if debug:
             log.debug(f"Original get_all_open_file_paths response: {response.model_dump_json(indent=2)}.")
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if not path_mismatch or response.isError or not response.content:
             return response
@@ -633,16 +625,16 @@ class JetbrainsMCPServerProxy:
 
                 afp = text_dict.get('activeFilePath', None)
                 if afp and isinstance(afp, str) and afp.strip():
-                    text_dict['activeFilePath'] = convert_path(path=afp, from_type=jetbrains_path_type,
-                                                               to_type=proxy_path_type)
+                    text_dict['activeFilePath'] = convert_path(path=afp, from_type=server_path_type,
+                                                               to_type=client_path_type)
 
                 ofs = text_dict.get('openFiles', None)
                 if isinstance(ofs, list):
                     converted = []
                     for p in ofs:
                         if p and isinstance(p, str) and p.strip():
-                            converted.append(convert_path(path=p, from_type=jetbrains_path_type,
-                                                          to_type=proxy_path_type))
+                            converted.append(convert_path(path=p, from_type=server_path_type,
+                                                          to_type=client_path_type))
                     text_dict['openFiles'] = converted
 
                 c.text = json.dumps(text_dict)
@@ -705,14 +697,14 @@ class JetbrainsMCPServerProxy:
             log.error("Missing required argument: filePath")
             raise ToolError(message="Missing required argument: filePath", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             path = arguments.get('filePath', None)
             if path and isinstance(path, str) and path.strip():
-                arguments['filePath'] = convert_path(path=path, from_type=proxy_path_type, to_type=jetbrains_path_type)
+                arguments['filePath'] = convert_path(path=path, from_type=client_path_type, to_type=server_path_type)
 
         try:
             if debug:
@@ -738,8 +730,8 @@ class JetbrainsMCPServerProxy:
                     text_dict = json.loads(c.text)
                     fp = text_dict.get('filePath', None)
                     if fp and isinstance(fp, str) and fp.strip():
-                        text_dict['filePath'] = convert_path(path=fp, from_type=jetbrains_path_type,
-                                                             to_type=proxy_path_type)
+                        text_dict['filePath'] = convert_path(path=fp, from_type=server_path_type,
+                                                             to_type=client_path_type)
                     c.text = json.dumps(text_dict)
         except BaseException as e:
             import traceback
@@ -794,15 +786,15 @@ class JetbrainsMCPServerProxy:
             log.error("Missing required argument: pathInProject")
             raise ToolError(message="Missing required argument: pathInProject", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             path = arguments.get('pathInProject', None)
             if path and isinstance(path, str) and path.strip():
-                arguments['pathInProject'] = convert_path(path=path, from_type=proxy_path_type,
-                                                          to_type=jetbrains_path_type)
+                arguments['pathInProject'] = convert_path(path=path, from_type=client_path_type,
+                                                          to_type=server_path_type)
 
         try:
             if debug:
@@ -873,15 +865,15 @@ class JetbrainsMCPServerProxy:
             log.error("Missing required argument: directoryPath")
             raise ToolError(message="Missing required argument: directoryPath", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             directory_path = arguments.get('directoryPath', None)
             if directory_path and isinstance(directory_path, str) and directory_path.strip():
-                arguments['directoryPath'] = convert_path(path=directory_path, from_type=proxy_path_type,
-                                                          to_type=jetbrains_path_type)
+                arguments['directoryPath'] = convert_path(path=directory_path, from_type=client_path_type,
+                                                          to_type=server_path_type)
 
         try:
             if debug:
@@ -909,16 +901,16 @@ class JetbrainsMCPServerProxy:
                     traversed_dir = text_dict.get('traversedDirectory')
                     if traversed_dir and isinstance(traversed_dir, str) and traversed_dir.strip():
                         text_dict['traversedDirectory'] = convert_path(path=traversed_dir,
-                                                                       from_type=jetbrains_path_type,
-                                                                       to_type=proxy_path_type)
+                                                                       from_type=server_path_type,
+                                                                       to_type=client_path_type)
 
                     tree = text_dict.get('tree')
                     if tree and isinstance(tree, str) and tree.strip():
                         lines = tree.split('\n', 1)
                         if lines:
                             root_path_line = lines[0]
-                            converted_root = convert_path(path=root_path_line, from_type=jetbrains_path_type,
-                                                          to_type=proxy_path_type)
+                            converted_root = convert_path(path=root_path_line, from_type=server_path_type,
+                                                          to_type=client_path_type)
                             if len(lines) > 1:
                                 text_dict['tree'] = f"{converted_root}\n{lines[1]}"
                             else:
@@ -965,14 +957,14 @@ class JetbrainsMCPServerProxy:
             log.error("Missing required argument: path")
             raise ToolError(message="Missing required argument: path", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             path = arguments.get('path')
             if path and isinstance(path, str) and path.strip():
-                arguments['path'] = convert_path(path=path, from_type=proxy_path_type, to_type=jetbrains_path_type)
+                arguments['path'] = convert_path(path=path, from_type=client_path_type, to_type=server_path_type)
 
         try:
             if debug:
@@ -1032,15 +1024,15 @@ class JetbrainsMCPServerProxy:
                 log.error(f"Missing required argument: {arg}")
                 raise ToolError(message=f"Missing required argument: {arg}", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             path = arguments.get('pathInProject', None)
             if path and isinstance(path, str) and path.strip():
-                arguments['pathInProject'] = convert_path(path=path, from_type=proxy_path_type,
-                                                          to_type=jetbrains_path_type)
+                arguments['pathInProject'] = convert_path(path=path, from_type=client_path_type,
+                                                          to_type=server_path_type)
 
         try:
             if debug:
@@ -1108,15 +1100,15 @@ class JetbrainsMCPServerProxy:
                 log.error(f"Missing required argument: {arg}")
                 raise ToolError(message=f"Missing required argument: {arg}", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             path = arguments.get('pathInProject', None)
             if path and isinstance(path, str) and path.strip():
-                arguments['pathInProject'] = convert_path(path=path, from_type=proxy_path_type,
-                                                          to_type=jetbrains_path_type)
+                arguments['pathInProject'] = convert_path(path=path, from_type=client_path_type,
+                                                          to_type=server_path_type)
 
         try:
             if debug:
@@ -1202,15 +1194,15 @@ class JetbrainsMCPServerProxy:
             log.error("Missing required argument: regexPattern")
             raise ToolError(message="Missing required argument: regexPattern", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             directory_to_search = arguments.get('directoryToSearch')
             if directory_to_search and isinstance(directory_to_search, str) and directory_to_search.strip():
-                arguments['directoryToSearch'] = convert_path(path=directory_to_search, from_type=proxy_path_type,
-                                                              to_type=jetbrains_path_type)
+                arguments['directoryToSearch'] = convert_path(path=directory_to_search, from_type=client_path_type,
+                                                              to_type=server_path_type)
 
         try:
             if debug:
@@ -1241,8 +1233,8 @@ class JetbrainsMCPServerProxy:
                             if isinstance(entry, dict) and 'filePath' in entry:
                                 fp = entry['filePath']
                                 if fp and isinstance(fp, str) and fp.strip():
-                                    entry['filePath'] = convert_path(path=fp, from_type=jetbrains_path_type,
-                                                                     to_type=proxy_path_type)
+                                    entry['filePath'] = convert_path(path=fp, from_type=server_path_type,
+                                                                     to_type=client_path_type)
                     c.text = json.dumps(text_dict)
         except BaseException as e:
             import traceback
@@ -1306,15 +1298,15 @@ class JetbrainsMCPServerProxy:
             log.error("Missing required argument: searchText")
             raise ToolError(message="Missing required argument: searchText", code=400)
 
-        jetbrains_path_type = self.properties.jetbrains_path_type
-        proxy_path_type = self.properties.proxy_path_type
-        path_mismatch = jetbrains_path_type != proxy_path_type
+        server_path_type = self.properties.server_path_type
+        client_path_type = self.properties.client_path_type
+        path_mismatch = server_path_type != client_path_type
 
         if path_mismatch:
             directory_to_search = arguments.get('directoryToSearch', None)
             if directory_to_search and isinstance(directory_to_search, str) and directory_to_search.strip():
-                arguments['directoryToSearch'] = convert_path(path=directory_to_search, from_type=proxy_path_type,
-                                                              to_type=jetbrains_path_type)
+                arguments['directoryToSearch'] = convert_path(path=directory_to_search, from_type=client_path_type,
+                                                              to_type=server_path_type)
 
         try:
             if debug:
@@ -1345,8 +1337,8 @@ class JetbrainsMCPServerProxy:
                             if isinstance(entry, dict) and 'filePath' in entry:
                                 fp = entry['filePath']
                                 if fp and isinstance(fp, str) and fp.strip():
-                                    entry['filePath'] = convert_path(path=fp, from_type=jetbrains_path_type,
-                                                                     to_type=proxy_path_type)
+                                    entry['filePath'] = convert_path(path=fp, from_type=server_path_type,
+                                                                     to_type=client_path_type)
                     c.text = json.dumps(text_dict)
         except BaseException as e:
             import traceback
