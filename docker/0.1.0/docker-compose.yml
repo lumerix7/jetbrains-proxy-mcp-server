@@ -1,0 +1,25 @@
+services:
+  jetbrains-proxy-mcp-server:
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+      tags: [ jetbrains-proxy-mcp-server:0.1.0 ]
+      args:
+        - EXTRA_INDEX_URL=${EXTRA_INDEX_URL:-}
+        - EXTRA_INDEX_HOST=${EXTRA_INDEX_HOST:-}
+      network: host
+      no_cache: true
+    image: jetbrains-proxy-mcp-server:0.1.0
+    ports:
+      - "${SERVER_PORT:-41110}:41110"
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - JETBRAINS_PROXY_MCP_SERVER_TRANSPORT=sse
+      - JETBRAINS_PROXY_MCP_SERVER_SSE_DEBUG_ENABLED=True
+      - JETBRAINS_PROXY_MCP_SERVER_CONFIG=/root/config.yaml
+      - SIMP_LOGGER_LOG_LEVEL=${SIMP_LOGGER_LOG_LEVEL:-DEBUG}
+    volumes:
+      - ${CONFIG_FILE:-}:/root/config.yaml
