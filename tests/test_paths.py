@@ -131,8 +131,8 @@ class TestPaths(unittest.TestCase):
         self.assertEqual("/c/foo", build_converted_path("c", "/foo", "windows_git_bash", "c:/foo"))
         self.assertEqual("/no/drive", build_converted_path(None, "/no/drive", "windows_git_bash", "/no/drive"))
         # To windows (drive preserved, double slash behavior maintained)
-        self.assertEqual("C://foo", build_converted_path("C", "/foo", "windows", "C:/foo"))
-        self.assertEqual("c://foo", build_converted_path("c", "/foo", "windows", "c:/foo"))
+        self.assertEqual("C:/foo", build_converted_path("C", "/foo", "windows", "C:/foo"))
+        self.assertEqual("c:/foo", build_converted_path("c", "/foo", "windows", "c:/foo"))
         # No drive, relative path returned unchanged
         self.assertEqual("rel/path", build_converted_path(None, "rel/path", "windows", "rel/path"))
         # No drive, absolute style path -> original returned
