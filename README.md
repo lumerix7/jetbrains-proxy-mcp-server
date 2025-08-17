@@ -225,11 +225,9 @@ The proxy supports a curated list of JetBrains tools:
 
 - `get_all_open_file_paths` - Get paths of all open files
 - `get_file_problems` - Analyze file for errors and warnings
-- `get_file_text_by_path` - Retrieve text content of a file
 - `get_project_dependencies` - Get project dependencies
 - `get_project_modules` - Get project modules
 - `get_project_problems` - Get project-wide problems
-- `list_directory_tree` - List directory contents in tree format
 - `reformat_file` - Reformat a file
 - `rename_refactoring` - Rename a symbol across the project
 - `replace_text_in_file` - Replace text in a file

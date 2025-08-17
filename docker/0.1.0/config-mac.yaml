@@ -1,0 +1,19 @@
+server-name: jetbrains-proxy-mcp-server
+transport: sse
+timeout: 60
+sse-port: 41110
+
+jetbrains-mcp-server:
+  name: "jetbrains-mcp-server"
+  url: "http://127.0.0.1:64342/sse"
+  timeout: 35.0
+  sse-read-timeout: 300.0
+  start-timeout: 120.0
+  stop-timeout: 30.0
+  max-attempts: 5
+  initial-backoff: 1.0
+  max-backoff: 60.0
+  backoff-multiplier: 3.0
+  debug-enabled: true
+  client-path-type: "wsl"
+  server-path-type: "wsl"

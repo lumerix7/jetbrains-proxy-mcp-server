@@ -41,11 +41,11 @@ class JetbrainsMCPServerProxy:
         # "create_new_file", # Note, this tool is not working correctly: stuck or not responding success
         "get_all_open_file_paths",
         "get_file_problems",
-        "get_file_text_by_path",
+        # "get_file_text_by_path", # Schema is not complete
         "get_project_dependencies",
         "get_project_modules",
         "get_project_problems",
-        "list_directory_tree",
+        # "list_directory_tree", # Response has too many unicodes
         "reformat_file",
         "rename_refactoring",
         "replace_text_in_file",
@@ -78,8 +78,8 @@ class JetbrainsMCPServerProxy:
             # "create_new_file": self._do_create_new_file,
             "get_all_open_file_paths": self._do_get_all_open_file_paths,
             "get_file_problems": self._do_get_file_problems,
-            "get_file_text_by_path": self._do_get_file_text_by_path,
-            "list_directory_tree": self._do_list_directory_tree,
+            # "get_file_text_by_path": self._do_get_file_text_by_path,
+            # "list_directory_tree": self._do_list_directory_tree,
             "reformat_file": self._do_reformat_file,
             "rename_refactoring": self._do_rename_refactoring,
             "replace_text_in_file": self._do_replace_text_in_file,
@@ -743,6 +743,7 @@ class JetbrainsMCPServerProxy:
 
         return response
 
+    # UNUSED
     async def _do_get_file_text_by_path(self, deadline: float, arguments: dict[str, Any]) -> CallToolResult:
         """Schema:
             {
@@ -812,6 +813,7 @@ class JetbrainsMCPServerProxy:
 
         return response
 
+    # UNUSED
     async def _do_list_directory_tree(self, deadline: float, arguments: dict[str, Any]) -> CallToolResult:
         """Schema:
             {

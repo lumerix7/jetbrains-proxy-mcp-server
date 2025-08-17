@@ -198,13 +198,13 @@ def get_bool_property(props: dict, prop_name: str, env_var_name: str | None = No
 # async def get(
 #        func: Callable[P, Awaitable[T]],
 #        *args: P.args,
-#        timeout: float = ...,
-#        max_attempts: int = ...,
-#        initial_backoff: float = ...,
-#        max_backoff: float = ...,
-#        backoff_multiplier: float = ...,
-#        retryable_exceptions: tuple[type[BaseException], ...] = ...,
-#        attempt_hook: Optional[Callable[[HookArgs], Awaitable[None] | None]] = None,
+#        retryer_timeout: float = ...,
+#        retryer_max_attempts: int = ...,
+#        retryer_initial_backoff: float = ...,
+#        retryer_max_backoff: float = ...,
+#        retryer_backoff_multiplier: float = ...,
+#        retryer_retryable_exceptions: tuple[type[BaseException], ...] = ...,
+#        retryer_attempt_hook: Optional[Callable[[HookArgs], Awaitable[None] | None]] = None,
 #        **kwargs: P.kwargs
 # ) -> T: ...
 #
@@ -213,13 +213,13 @@ def get_bool_property(props: dict, prop_name: str, env_var_name: str | None = No
 # async def get(
 #        func: Callable[P, T],
 #        *args: P.args,
-#        timeout: float = ...,
-#        max_attempts: int = ...,
-#        initial_backoff: float = ...,
-#        max_backoff: float = ...,
-#        backoff_multiplier: float = ...,
-#        retryable_exceptions: tuple[type[BaseException], ...] = ...,
-#        attempt_hook: Optional[Callable[[HookArgs], Awaitable[None] | None]] = None,
+#        retryer_timeout: float = ...,
+#        retryer_max_attempts: int = ...,
+#        retryer_initial_backoff: float = ...,
+#        retryer_max_backoff: float = ...,
+#        retryer_backoff_multiplier: float = ...,
+#        retryer_retryable_exceptions: tuple[type[BaseException], ...] = ...,
+#        retryer_attempt_hook: Optional[Callable[[HookArgs], Awaitable[None] | None]] = None,
 #        **kwargs: P.kwargs
 # ) -> T: ...
 
