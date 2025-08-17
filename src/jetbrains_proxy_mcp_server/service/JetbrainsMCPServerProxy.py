@@ -41,11 +41,11 @@ class JetbrainsMCPServerProxy:
         # "create_new_file", # Note, this tool is not working correctly: stuck or not responding success
         "get_all_open_file_paths",
         "get_file_problems",
-        # "get_file_text_by_path", # Schema is not complete
+        "get_file_text_by_path",  # The schema may be not completed for gemini, but this tool is useful
         "get_project_dependencies",
         "get_project_modules",
         "get_project_problems",
-        # "list_directory_tree", # Response has too many unicodes
+        "list_directory_tree",  # Response has too many unicodes (fix using 'ensure_ascii=False' ?), but useful on non-CLI environments
         "reformat_file",
         "rename_refactoring",
         "replace_text_in_file",
@@ -78,8 +78,8 @@ class JetbrainsMCPServerProxy:
             # "create_new_file": self._do_create_new_file,
             "get_all_open_file_paths": self._do_get_all_open_file_paths,
             "get_file_problems": self._do_get_file_problems,
-            # "get_file_text_by_path": self._do_get_file_text_by_path,
-            # "list_directory_tree": self._do_list_directory_tree,
+            "get_file_text_by_path": self._do_get_file_text_by_path,
+            "list_directory_tree": self._do_list_directory_tree,
             "reformat_file": self._do_reformat_file,
             "rename_refactoring": self._do_rename_refactoring,
             "replace_text_in_file": self._do_replace_text_in_file,
@@ -637,7 +637,7 @@ class JetbrainsMCPServerProxy:
                                                           to_type=client_path_type))
                     text_dict['openFiles'] = converted
 
-                c.text = json.dumps(text_dict)
+                c.text = json.dumps(text_dict, ensure_ascii=False)
 
         if debug:
             log.debug(f"Converted get_all_open_file_paths response: {response.model_dump_json(indent=2)}.")
@@ -732,7 +732,7 @@ class JetbrainsMCPServerProxy:
                     if fp and isinstance(fp, str) and fp.strip():
                         text_dict['filePath'] = convert_path(path=fp, from_type=server_path_type,
                                                              to_type=client_path_type)
-                    c.text = json.dumps(text_dict)
+                    c.text = json.dumps(text_dict, ensure_ascii=False)
         except BaseException as e:
             import traceback
             log.warning(f"Exception converting filePath in get_file_problems response: {e}. "
@@ -918,7 +918,7 @@ class JetbrainsMCPServerProxy:
                             else:
                                 text_dict['tree'] = converted_root
 
-                    c.text = json.dumps(text_dict)
+                    c.text = json.dumps(text_dict, ensure_ascii=False)
         except BaseException as e:
             import traceback
             log.warning(f"Exception converting paths in list_directory_tree response: {e}. "
@@ -1237,7 +1237,7 @@ class JetbrainsMCPServerProxy:
                                 if fp and isinstance(fp, str) and fp.strip():
                                     entry['filePath'] = convert_path(path=fp, from_type=server_path_type,
                                                                      to_type=client_path_type)
-                    c.text = json.dumps(text_dict)
+                    c.text = json.dumps(text_dict, ensure_ascii=False)
         except BaseException as e:
             import traceback
             log.warning(f"Exception converting filePath in search_in_files_by_regex response: {e}. "
@@ -1341,7 +1341,7 @@ class JetbrainsMCPServerProxy:
                                 if fp and isinstance(fp, str) and fp.strip():
                                     entry['filePath'] = convert_path(path=fp, from_type=server_path_type,
                                                                      to_type=client_path_type)
-                    c.text = json.dumps(text_dict)
+                    c.text = json.dumps(text_dict, ensure_ascii=False)
         except BaseException as e:
             import traceback
             log.warning(f"Exception converting filePath in search_in_files_by_text response: {e}. "
