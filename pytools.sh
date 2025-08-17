@@ -5,7 +5,7 @@ orig_dir=$(pwd)
 script_dir="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 script_dirname="$(basename "$script_dir")"
 package="$script_dirname"                   # Package name defaults to directory name
-PYTHON_BIN="${PYTHON_BIN:-python3}"         # Can be overridden via environment variable
+PYTHON_BIN="${PYTHON_BIN:-python}"          # Can be overridden via environment variable
 VENV_DIR="${VENV_DIR:-$script_dir/.venv}"   # Project-local venv directory
 
 log() { printf '[%s] %s\n' "$(date +'%F %T')" "$*"; }
@@ -172,7 +172,7 @@ Commands:
                                       $(basename "$0") upload testpypi 'build==1.2.2' 'twine==5.0.0'
 
 Env vars:
-  PYTHON_BIN   Python command to use (default: python3)
+  PYTHON_BIN   Python command to use (default: python)
   VENV_DIR     Virtualenv path (default: \$script_dir/.venv)
 EOF
 }

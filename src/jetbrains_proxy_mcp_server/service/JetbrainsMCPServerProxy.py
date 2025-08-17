@@ -10,7 +10,7 @@ from mcp import ListToolsResult
 from mcp.types import CallToolResult, TextContent
 
 from ..logger import get_logger
-from ..paths import convert_path
+from ..paths import convert_path, normalize_path
 from ..properties import JetbrainsMCPServer
 from ..schema import ToolError
 from ..utils import execute, get, AttemptHookArgs
@@ -45,7 +45,9 @@ class JetbrainsMCPServerProxy:
         "get_project_dependencies",
         "get_project_modules",
         "get_project_problems",
-        "list_directory_tree",  # Response has too many unicodes (fix using 'ensure_ascii=False' ?), but useful on non-CLI environments
+        # list_directory_tree: Response has too many unicodes (fix using 'ensure_ascii=False' ?),
+        # but useful on non-CLI environments
+        "list_directory_tree",
         "reformat_file",
         "rename_refactoring",
         "replace_text_in_file",
@@ -536,17 +538,16 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            path = arguments.get('pathInProject', None)
-            if path and isinstance(path, str) and path.strip():
-                arguments['pathInProject'] = convert_path(path=path, from_type=server_path_type,
-                                                          to_type=client_path_type)
+        path = arguments.get('pathInProject', None)
+        if path and isinstance(path, str) and path.strip():
+            # Note, normalize_path is always called to eliminate redundant backslashes and slashes
+            arguments['pathInProject'] = convert_path(path=normalize_path(path), from_type=server_path_type,
+                                                      to_type=client_path_type)
 
         try:
             if debug:
-                log.debug(f"Calling create_new_file with arguments: {arguments}.")
+                log.debug(f"Calling create_new_file with arguments: {arguments}...")
 
             response = await self._do_call_tool(deadline=deadline, name="create_new_file", arguments=arguments)
         except ToolError:
@@ -597,7 +598,7 @@ class JetbrainsMCPServerProxy:
 
         try:
             if debug:
-                log.debug(f"Calling get_all_open_file_paths with arguments: {arguments}.")
+                log.debug(f"Calling get_all_open_file_paths with arguments: {arguments}...")
 
             response = await self._do_call_tool(deadline=deadline, name="get_all_open_file_paths",
                                                 arguments=arguments)
@@ -613,9 +614,8 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if not path_mismatch or response.isError or not response.content:
+        if response.isError or not response.content:
             return response
 
         for c in response.content:
@@ -625,7 +625,7 @@ class JetbrainsMCPServerProxy:
 
                 afp = text_dict.get('activeFilePath', None)
                 if afp and isinstance(afp, str) and afp.strip():
-                    text_dict['activeFilePath'] = convert_path(path=afp, from_type=server_path_type,
+                    text_dict['activeFilePath'] = convert_path(path=normalize_path(afp), from_type=server_path_type,
                                                                to_type=client_path_type)
 
                 ofs = text_dict.get('openFiles', None)
@@ -633,7 +633,7 @@ class JetbrainsMCPServerProxy:
                     converted = []
                     for p in ofs:
                         if p and isinstance(p, str) and p.strip():
-                            converted.append(convert_path(path=p, from_type=server_path_type,
+                            converted.append(convert_path(path=normalize_path(p), from_type=server_path_type,
                                                           to_type=client_path_type))
                     text_dict['openFiles'] = converted
 
@@ -699,16 +699,15 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            path = arguments.get('filePath', None)
-            if path and isinstance(path, str) and path.strip():
-                arguments['filePath'] = convert_path(path=path, from_type=client_path_type, to_type=server_path_type)
+        path = arguments.get('filePath', None)
+        if path and isinstance(path, str) and path.strip():
+            arguments['filePath'] = convert_path(path=normalize_path(path), from_type=client_path_type,
+                                                 to_type=server_path_type)
 
         try:
             if debug:
-                log.debug(f"Calling get_file_problems with arguments: {arguments}. Need convert: {path_mismatch}")
+                log.debug(f"Calling get_file_problems with arguments: {arguments}...")
             response = await self._do_call_tool(deadline=deadline, name="get_file_problems", arguments=arguments)
         except ToolError:
             raise
@@ -720,7 +719,7 @@ class JetbrainsMCPServerProxy:
         if debug:
             log.debug(f"Original get_file_problems response: {response.model_dump_json(indent=2)}.")
 
-        if not path_mismatch or response.isError or not response.content:
+        if response.isError or not response.content:
             return response
 
         try:
@@ -730,7 +729,7 @@ class JetbrainsMCPServerProxy:
                     text_dict = json.loads(c.text)
                     fp = text_dict.get('filePath', None)
                     if fp and isinstance(fp, str) and fp.strip():
-                        text_dict['filePath'] = convert_path(path=fp, from_type=server_path_type,
+                        text_dict['filePath'] = convert_path(path=normalize_path(fp), from_type=server_path_type,
                                                              to_type=client_path_type)
                     c.text = json.dumps(text_dict, ensure_ascii=False)
         except BaseException as e:
@@ -789,17 +788,15 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            path = arguments.get('pathInProject', None)
-            if path and isinstance(path, str) and path.strip():
-                arguments['pathInProject'] = convert_path(path=path, from_type=client_path_type,
-                                                          to_type=server_path_type)
+        path = arguments.get('pathInProject', None)
+        if path and isinstance(path, str) and path.strip():
+            arguments['pathInProject'] = convert_path(path=normalize_path(path), from_type=client_path_type,
+                                                      to_type=server_path_type)
 
         try:
             if debug:
-                log.debug(f"Calling get_file_text_by_path with arguments: {arguments}. Need convert: {path_mismatch}")
+                log.debug(f"Calling get_file_text_by_path with arguments: {arguments}...")
             response = await self._do_call_tool(deadline=deadline, name="get_file_text_by_path", arguments=arguments)
         except ToolError:
             raise
@@ -869,17 +866,16 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            directory_path = arguments.get('directoryPath', None)
-            if directory_path and isinstance(directory_path, str) and directory_path.strip():
-                arguments['directoryPath'] = convert_path(path=directory_path, from_type=client_path_type,
-                                                          to_type=server_path_type)
+        directory_path = arguments.get('directoryPath', None)
+        if directory_path and isinstance(directory_path, str) and directory_path.strip():
+            arguments['directoryPath'] = convert_path(path=normalize_path(directory_path),
+                                                      from_type=client_path_type,
+                                                      to_type=server_path_type)
 
         try:
             if debug:
-                log.debug(f"Calling list_directory_tree with arguments: {arguments}. Need convert: {path_mismatch}")
+                log.debug(f"Calling list_directory_tree with arguments: {arguments}...")
             response = await self._do_call_tool(deadline=deadline, name="list_directory_tree", arguments=arguments)
         except ToolError:
             raise
@@ -891,7 +887,7 @@ class JetbrainsMCPServerProxy:
         if debug:
             log.debug(f"Original list_directory_tree response: {response.model_dump_json(indent=2)}.")
 
-        if not path_mismatch or response.isError or not response.content:
+        if response.isError or not response.content:
             return response
 
         try:
@@ -902,7 +898,7 @@ class JetbrainsMCPServerProxy:
 
                     traversed_dir = text_dict.get('traversedDirectory')
                     if traversed_dir and isinstance(traversed_dir, str) and traversed_dir.strip():
-                        text_dict['traversedDirectory'] = convert_path(path=traversed_dir,
+                        text_dict['traversedDirectory'] = convert_path(path=normalize_path(traversed_dir),
                                                                        from_type=server_path_type,
                                                                        to_type=client_path_type)
 
@@ -911,7 +907,8 @@ class JetbrainsMCPServerProxy:
                         lines = tree.split('\n', 1)
                         if lines:
                             root_path_line = lines[0]
-                            converted_root = convert_path(path=root_path_line, from_type=server_path_type,
+                            converted_root = convert_path(path=normalize_path(root_path_line),
+                                                          from_type=server_path_type,
                                                           to_type=client_path_type)
                             if len(lines) > 1:
                                 text_dict['tree'] = f"{converted_root}\n{lines[1]}"
@@ -961,16 +958,15 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            path = arguments.get('path')
-            if path and isinstance(path, str) and path.strip():
-                arguments['path'] = convert_path(path=path, from_type=client_path_type, to_type=server_path_type)
+        path = arguments.get('path')
+        if path and isinstance(path, str) and path.strip():
+            arguments['path'] = convert_path(path=normalize_path(path), from_type=client_path_type,
+                                             to_type=server_path_type)
 
         try:
             if debug:
-                log.debug(f"Calling reformat_file with arguments: {arguments}. Need convert: {path_mismatch}")
+                log.debug(f"Calling reformat_file with arguments: {arguments}...")
             response = await self._do_call_tool(deadline=deadline, name="reformat_file", arguments=arguments)
         except ToolError:
             raise
@@ -1028,17 +1024,15 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            path = arguments.get('pathInProject', None)
-            if path and isinstance(path, str) and path.strip():
-                arguments['pathInProject'] = convert_path(path=path, from_type=client_path_type,
-                                                          to_type=server_path_type)
+        path = arguments.get('pathInProject', None)
+        if path and isinstance(path, str) and path.strip():
+            arguments['pathInProject'] = convert_path(path=normalize_path(path), from_type=client_path_type,
+                                                      to_type=server_path_type)
 
         try:
             if debug:
-                log.debug(f"Calling rename_refactoring with arguments: {arguments}. Need convert: {path_mismatch}")
+                log.debug(f"Calling rename_refactoring with arguments: {arguments}...")
             response = await self._do_call_tool(deadline=deadline, name="rename_refactoring", arguments=arguments)
         except ToolError:
             raise
@@ -1104,17 +1098,15 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            path = arguments.get('pathInProject', None)
-            if path and isinstance(path, str) and path.strip():
-                arguments['pathInProject'] = convert_path(path=path, from_type=client_path_type,
-                                                          to_type=server_path_type)
+        path = arguments.get('pathInProject', None)
+        if path and isinstance(path, str) and path.strip():
+            arguments['pathInProject'] = convert_path(path=normalize_path(path), from_type=client_path_type,
+                                                      to_type=server_path_type)
 
         try:
             if debug:
-                log.debug(f"Calling replace_text_in_file with arguments: {arguments}. Need convert: {path_mismatch}")
+                log.debug(f"Calling replace_text_in_file with arguments: {arguments}...")
             response = await self._do_call_tool(deadline=deadline, name="replace_text_in_file", arguments=arguments)
         except ToolError:
             raise
@@ -1198,18 +1190,16 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            directory_to_search = arguments.get('directoryToSearch')
-            if directory_to_search and isinstance(directory_to_search, str) and directory_to_search.strip():
-                arguments['directoryToSearch'] = convert_path(path=directory_to_search, from_type=client_path_type,
-                                                              to_type=server_path_type)
+        directory_to_search = arguments.get('directoryToSearch')
+        if directory_to_search and isinstance(directory_to_search, str) and directory_to_search.strip():
+            arguments['directoryToSearch'] = convert_path(path=normalize_path(directory_to_search),
+                                                          from_type=client_path_type,
+                                                          to_type=server_path_type)
 
         try:
             if debug:
-                log.debug(
-                    f"Calling search_in_files_by_regex with arguments: {arguments}. Need convert: {path_mismatch}")
+                log.debug(f"Calling search_in_files_by_regex with arguments: {arguments}...")
             response = await self._do_call_tool(deadline=deadline, name="search_in_files_by_regex", arguments=arguments)
         except ToolError:
             raise
@@ -1221,7 +1211,7 @@ class JetbrainsMCPServerProxy:
         if debug:
             log.debug(f"Original search_in_files_by_regex response: {response.model_dump_json(indent=2)}.")
 
-        if not path_mismatch or response.isError or not response.content:
+        if response.isError or not response.content:
             return response
 
         try:
@@ -1235,7 +1225,8 @@ class JetbrainsMCPServerProxy:
                             if isinstance(entry, dict) and 'filePath' in entry:
                                 fp = entry['filePath']
                                 if fp and isinstance(fp, str) and fp.strip():
-                                    entry['filePath'] = convert_path(path=fp, from_type=server_path_type,
+                                    entry['filePath'] = convert_path(path=normalize_path(fp),
+                                                                     from_type=server_path_type,
                                                                      to_type=client_path_type)
                     c.text = json.dumps(text_dict, ensure_ascii=False)
         except BaseException as e:
@@ -1302,18 +1293,16 @@ class JetbrainsMCPServerProxy:
 
         server_path_type = self.properties.server_path_type
         client_path_type = self.properties.client_path_type
-        path_mismatch = server_path_type != client_path_type
 
-        if path_mismatch:
-            directory_to_search = arguments.get('directoryToSearch', None)
-            if directory_to_search and isinstance(directory_to_search, str) and directory_to_search.strip():
-                arguments['directoryToSearch'] = convert_path(path=directory_to_search, from_type=client_path_type,
-                                                              to_type=server_path_type)
+        directory_to_search = arguments.get('directoryToSearch', None)
+        if directory_to_search and isinstance(directory_to_search, str) and directory_to_search.strip():
+            arguments['directoryToSearch'] = convert_path(path=normalize_path(directory_to_search),
+                                                          from_type=client_path_type,
+                                                          to_type=server_path_type)
 
         try:
             if debug:
-                log.debug(
-                    f"Calling search_in_files_by_text with arguments: {arguments}. Need convert: {path_mismatch}")
+                log.debug(f"Calling search_in_files_by_text with arguments: {arguments}...")
             response = await self._do_call_tool(deadline=deadline, name="search_in_files_by_text", arguments=arguments)
         except ToolError:
             raise
@@ -1325,7 +1314,7 @@ class JetbrainsMCPServerProxy:
         if debug:
             log.debug(f"Original search_in_files_by_text response: {response.model_dump_json(indent=2)}.")
 
-        if not path_mismatch or response.isError or not response.content:
+        if response.isError or not response.content:
             return response
 
         try:
@@ -1339,7 +1328,8 @@ class JetbrainsMCPServerProxy:
                             if isinstance(entry, dict) and 'filePath' in entry:
                                 fp = entry['filePath']
                                 if fp and isinstance(fp, str) and fp.strip():
-                                    entry['filePath'] = convert_path(path=fp, from_type=server_path_type,
+                                    entry['filePath'] = convert_path(path=normalize_path(fp),
+                                                                     from_type=server_path_type,
                                                                      to_type=client_path_type)
                     c.text = json.dumps(text_dict, ensure_ascii=False)
         except BaseException as e:
